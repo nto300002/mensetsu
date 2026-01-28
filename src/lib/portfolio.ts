@@ -1,0 +1,169 @@
+import fs from 'fs';
+import path from 'path';
+
+export function getPortfolioContent(): string {
+    const portfolioPath = path.join(process.cwd(), 'src', 'data', 'portfolio.md');
+    return fs.readFileSync(portfolioPath, 'utf-8');
+}
+
+export const portfolioContent = `# ポートフォリオ情報: けいかくん
+
+## 基本情報
+
+- **プロジェクト名**: けいかくん
+- **種別**: 個人開発（ポートフォリオ）
+- **開発期間**: 約6ヶ月
+- **概要**: 福祉サービス事業所向けの個別支援計画管理システム
+
+## 開発背景
+
+現在勤務している福祉サービス事業所（asoBe）での実体験から開発。
+
+### 現場の課題
+
+#### 1. 期限管理の課題
+- 日々の業務に追われ、個別支援計画の更新期限がギリギリになりがち
+- 「自動的に通知してくれる機能があれば...」という現場の声
+
+#### 2. 書類管理の課題
+- Google Driveや紙での管理では、どこに保管したかわからなくなる
+- 「アプリで一元管理できたらいいな」という現場の声
+
+#### 3. 既存アプリの課題
+- 機能が充実しているアプリは高額
+- 安価なアプリは機能が物足りない
+- 「機能が充実していて、かつ安いアプリがほしい」という現場の声
+
+### ターゲットユーザー
+- 福祉事業所に勤めるスタッフ
+- 30〜40代で5年以上の事務経験
+- Google Calendar、Gmailなどを業務に活用している（DX化がある程度進んだ職場）
+
+### 開発の強み
+- 実際に現場で働きながら開発しているため、リアルな課題を把握できる
+- ユーザーの声を直接聞いて機能改善に反映できる
+
+## 技術スタック
+
+### バックエンド
+- **言語/フレームワーク**: Python / FastAPI 0.115.0
+- **ORM**: SQLAlchemy 2.0 (Async)
+- **DBマイグレーション**: Alembic
+- **本番サーバー**: Gunicorn + Uvicorn Worker
+
+### フロントエンド
+- **フレームワーク**: Next.js 16 (App Router)
+- **言語**: TypeScript
+- **UIライブラリ**: Tailwind CSS, Radix UI
+- **フォーム管理**: react-hook-form + zod
+
+### インフラ
+- **バックエンド**: Google Cloud Run (asia-northeast1)
+- **フロントエンド**: Vercel
+- **データベース**: PostgreSQL (Neon)
+- **ファイルストレージ**: AWS S3
+- **CI/CD**: GitHub Actions + Cloud Build
+
+### 外部サービス連携
+- **決済**: Stripe（サブスクリプション課金）
+- **メール送信**: AWS SES（fastapi-mail経由）
+- **カレンダー**: Google Calendar API
+- **通知**: Web Push（pywebpush）
+
+## 主要機能
+
+### 1. 認証・認可
+- JWT認証（Cookie保存、HTTPOnly）
+- 2要素認証（TOTP）
+- 役割ベースアクセス制御（オーナー/マネージャー/従業員）
+- CSRF保護
+
+### 2. 利用者管理
+- 福祉サービス利用者の登録・編集
+- 個別支援計画サイクルの管理
+- 計画の更新期限管理
+
+### 3. PDF管理
+- ドラッグ&ドロップでPDFアップロード
+- AWS S3への保存
+- 署名付きURLによるセキュアな取得
+
+### 4. 通知システム- 更新期限のメールアラート（毎日バッチ処理）
+- Web Push通知
+- Google Calendarへのイベント自動登録
+
+### 5. サブスクリプション課金
+- Stripe Checkoutによる決済
+- Webhook処理（冪等性担保）
+- 課金ステータス管理
+
+## アーキテクチャ
+
+### バックエンド4層構造
+1. **API層（endpoints/）**: HTTPリクエスト処理、入力バリデーション
+2. **Services層（services/）**: ビジネスロジック、トランザクション管理
+3. **CRUD層（crud/）**: 単一テーブルのDB操作
+4. **Models層（models/）**: SQLAlchemyモデル定義
+
+### 採用理由
+- 責務の分離による保守性向上
+- 各層を独立してテスト可能
+- 複数CRUD操作をServices層で統合
+
+## 技術的な工夫
+
+### N+1問題対策
+- selectinloadを採用
+- 1対多リレーションが多いため、joinedloadではなくselectinloadを選択
+- joinedloadだとJOINで親データが子の数だけ重複するが、selectinloadは重複なし
+
+### セキュリティ
+- JWT認証はLocalStorageではなくCookie（HttpOnly）に保存 → XSS対策
+- SameSite=Lax + CSRFトークンでCSRF対策
+- パスワードはbcryptでハッシュ化
+- Google Calendar認証情報はFernetで暗号化して保存
+- SQLインジェクション対策（パラメータ化クエリ）
+
+### 外部API連携
+- Google Calendar: サービスアカウント方式
+- Stripe Webhook: 署名検証 + 冪等性処理（webhook_eventsテーブル）
+- メール送信: tenacityによるリトライ処理
+
+## 開発中の課題と解決
+
+### 1. AWS SESの設定
+- **課題**: IAM設定、最小権限ポリシー、本番移行審査など想定外の工程が多く進捗停止
+- **解決**: サンドボックス環境で最小限のテストを先に実施、動作確認後に本番申請
+- **学び**: 未経験技術は小さく切り出して先に検証する
+
+### 2. マイグレーション管理
+- **課題**: NeonDBのブランチ機能とAlembicの連携がうまくいかず、本番では手動SQL実行
+- **反省**: CI/CDにマイグレーションを組み込む設計を最初からすべきだった
+
+## インフラ選定理由
+
+### フロントエンド/バックエンド分離
+1. **技術面**: Next.jsのReactエコシステム、FastAPIの非同期処理をそれぞれ活かせる
+2. **コスト面**: Vercel（無料枠）とCloud Run（従量課金）で長期運用コストを抑制
+
+### Cloud Run
+- リクエストがないときは0インスタンスにスケールダウン → コスト削減
+- Dockerベースで移植性が高い
+
+### Vercel
+- Next.jsに最適化されたビルド・デプロイ
+- Hobbyプランで無料運用可能
+
+## 今後の改善予定
+
+- Redis導入（セッション、キャッシュ）
+- E2Eテスト（Playwright）
+- CI/CDへのマイグレーション組み込み
+- OAuth 2.0対応（Google Calendar）
+
+## 補足情報
+
+- **開発者の背景**: 農業・福祉業界からWeb開発に転向
+- **学習中**: 基本情報技術者試験
+- **使用した主なAIツール**: Claude, GitHub Copilot
+`;
